@@ -16,16 +16,17 @@ cCount = 0
 
 s = [['0' for w in range(width)] for h in range(height)]
 
-# while True:
-#
-#     if keyboard.is_pressed('q'):
-#         break
-if True:
+lastSavedMouseX = 0
+
+while True:
+
+    if keyboard.is_pressed('q'):
+        break
     path = ''
 
     while True:  # making a loop
         try:
-            x = int(mouse.position[0] / 10)
+            x = lastSavedMouseX = int(mouse.position[0] / 10)
             y = int(mouse.position[1] / 10)
             s[x][y] = '1'
         except:
@@ -45,23 +46,32 @@ if True:
         if keyboard.is_pressed('q'):
             break
 
+    ones = 0
+    for i in range(len(s)):
+        ones += s[i].count('1')
+
+    if ones < 40:
+        continue
+
     if path != '':
         modVal = 1
-        # # 20%
-        # if 'a' in path:
-        #     modVal = aCount
-        # if 'b' in path:
-        #     modVal = bCount
-        # if 'c' in path:
-        #     modVal = cCount
-        #
-        # if modVal % 5 == 0:
-        #     path += 'test/'
-        # else:
-        #     path += 'train/'
-        #
-        # print("Writing to path: " + path)
-        # keyboard.wait('space')
+        # 20%
+        if 'a' in path:
+            modVal = aCount
+        if 'b' in path:
+            modVal = bCount
+        if 'c' in path:
+            modVal = cCount
+
+        if modVal % 5 == 0:
+            path += 'test/'
+        else:
+            path += 'train/'
+
+        print("Writing to path: " + path)
+
+        while abs(mouse.position[0] - lastSavedMouseX) < 10:
+            pass
 
         s = map(lambda x: map(int, x), s)
 
