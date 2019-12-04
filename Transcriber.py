@@ -1,82 +1,68 @@
-from pynput.mouse import Controller
-from pynput.keyboard import Listener
-import png
-import msvcrt
-import sys
-import select
-import keyboard
+from keras.models import Sequential
+from keras.layers import Convolution2D  # for 2d images
+from keras.layers import MaxPool2D
+from keras.layers import Flatten
+from keras.layers import Dense
+from keras_preprocessing.image import ImageDataGenerator
+from keras.utils import plot_model
 
-mouse = Controller()
-width = 192
-height = 108
+rgb = 2
 
-aCount = 0
-bCount = 0
-cCount = 0
+cnn = Sequential()
 
-s = [['0' for w in range(width)] for h in range(height)]
+# step 1: convolution
+# slide feature detectors ("filters") along image
+# results feature maps that form convolutional layer
+cnn.add(Convolution2D(32, 3, 3, input_shape=(192, 108, 3), activation='relu'))  # 32, 3x3 filters
 
-lastSavedMouseX = 0
+# step 2: pooling
+cnn.add(MaxPool2D(pool_size=(2, 2)))
 
-while True:
+# step 3: flatten
+# this vector will be the input of a future ann
+cnn.add(Flatten())
 
-    if keyboard.is_pressed('q'):
-        break
-    path = ''
+# step 4: full connection
+cnn.add(Dense(output_dim=128, activation='relu'))  # add hidden layers
+cnn.add(Dense(output_dim=3, activation='sigmoid'))  # sigmoid for binary output
 
-    while True:  # making a loop
-        try:
-            x = lastSavedMouseX = int(mouse.position[0] / 10)
-            y = int(mouse.position[1] / 10)
-            s[x][y] = '1'
-        except:
-            pass
-        if keyboard.is_pressed('a'):  # if key 'q' is pressed
-            aCount += 1
-            path += 'a/'
-            break  # finishing the loop
-        elif keyboard.is_pressed('b'):  # if key 'q' is pressed
-            bCount += 1
-            path += 'b/'
-            break  # finishing the loop
-        elif keyboard.is_pressed('c'):  # if key 'q' is pressed
-            cCount += 1
-            path += 'c/'
-            break  # finishing the loop
-        if keyboard.is_pressed('q'):
-            break
+# compile cnn
+cnn.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    ones = 0
-    for i in range(len(s)):
-        ones += s[i].count('1')
+# image augmentation - prevent overfitting
+train_datagen = ImageDataGenerator(
+    rescale=1. / 255,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True)
 
-    if ones < 40:
-        continue
+test_datagen = ImageDataGenerator(rescale=1. / 255)
 
-    if path != '':
-        modVal = 1
-        # 20%
-        if 'a' in path:
-            modVal = aCount
-        if 'b' in path:
-            modVal = bCount
-        if 'c' in path:
-            modVal = cCount
+train_set = train_datagen.flow_from_directory(
+    'train',
+    target_size=(192, 108),
+    batch_size=32)
 
-        if modVal % 5 == 0:
-            path += 'test/'
-        else:
-            path += 'train/'
+test_set = test_datagen.flow_from_directory(
+    'test',
+    target_size=(192, 108),
+    batch_size=32)
 
-        print("Writing to path: " + path)
+cnn.fit_generator(
+    train_set,
+    steps_per_epoch=8,  # we have 8k images in our training set
+    epochs=1000,
+    validation_data=test_set,
+    validation_steps=2)
 
-        while abs(mouse.position[0] - lastSavedMouseX) < 10:
-            pass
+cnn.save('transcriber.h5')
 
-        s = map(lambda x: map(int, x), s)
-
-        f = open(path + 'char' + str(modVal) + '.png', 'wb')
-        w = png.Writer(width, height, greyscale=True, bitdepth=1)
-        w.write(f, s)
-        f.close()
-        s = [['0' for w in range(width)] for h in range(height)]
+# visualize training set results
+# plot_model(cnn, to_file='model.png')
+# plt.scatter(cnn.metrics[0][:, 50], cnn.metrics[0][:, 50], color='red')
+# # plt.plot(X_train, regressor.predict(X_train), color='blue')
+# plt.plot(cnn.metrics[0]. cnn.metrics[1], color = 'red')
+# plt.title('Loss vs Accuracy')
+# plt.xlabel(cnn.metrics_names[0])
+# plt.ylabel(cnn.metrics_names[1])
+# plt.show()
